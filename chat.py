@@ -1,12 +1,4 @@
-"""
-Player lister example client
-
-This client requires a Mojang account for online-mode servers. It logs in to
-the server and prints the players listed in the tab menu.
-"""
-
 import traceback
-
 import quarry
 import twisted
 from quarry.net.auth import ProfileCLI
@@ -17,7 +9,8 @@ playerArr = []
 
 
 class PlayerListProtocol(ClientProtocol):
-    def setup(self):
+    def __init__(self):
+        super().__init__()
         self.players = {}
 
     def packet_player_list_item(self, buff):
@@ -29,7 +22,9 @@ class PlayerListProtocol(ClientProtocol):
 
             if p_online:
                 self.players[p_player_name] = {
-                    "name": p_player_name, "ping": p_ping}
+                    "name": p_player_name,
+                    "ping": p_ping
+                }
             elif p_player_name in self.players:
                 del self.players[p_player_name]
         # 1.8.x
@@ -74,17 +69,17 @@ class PlayerListProtocol(ClientProtocol):
                         "display_name": p_display_name,
                     }
 
-                elif p_action == 1:  # UPDATE_GAMEMODE
+                elif p_action == 1:  
                     p_gamemode = buff.unpack_varint()
 
                     if p_uuid in self.players:
                         self.players[p_uuid]["gamemode"] = p_gamemode
-                elif p_action == 2:  # UPDATE_LATENCY
+                elif p_action == 2: 
                     p_ping = buff.unpack_varint()
 
                     if p_uuid in self.players:
                         self.players[p_uuid]["ping"] = p_ping
-                elif p_action == 3:  # UPDATE_DISPLAY_NAME
+                elif p_action == 3:  
                     p_has_display_name = buff.unpack("?")
                     if p_has_display_name:
                         p_display_name = buff.unpack_chat()
@@ -93,14 +88,13 @@ class PlayerListProtocol(ClientProtocol):
 
                     if p_uuid in self.players:
                         self.players[p_uuid]["display_name"] = p_display_name
-                elif p_action == 4:  # REMOVE_PLAYER
+                elif p_action == 4:  
                     if p_uuid in self.players:
                         del self.players[p_uuid]
 
     def packet_chunk_data(self, buff):
         buff.discard()
 
-        # convert self.players into a more readable format
         printable_players = []
         for data in self.players.values():
             printable_players.append((data["name"], data["ping"]))
@@ -110,29 +104,23 @@ class PlayerListProtocol(ClientProtocol):
 
 
 class PlayerListFactory(ClientFactory):
-    try:
-        protocol = PlayerListProtocol
-    except quarry.net.client.ClientProtocol:
-        pass
-    except Exception:
-        traceback.print_exc()
-        print("line 122")
+    protocol = PlayerListProtocol
+
+    def __init__(self, profile):
+        super().__init__(profile)
 
 
-@defer.inlineCallbacks  # pyright: ignore[reportGeneralTypeIssues]
+@defer.inlineCallbacks
 def run(args):
     try:
-        # Log in
         profile = yield ProfileCLI.make_profile(args)
 
-        # Create factory
         factory = PlayerListFactory(profile)
 
-        # Connect!
         factory.connect(args.host, args.port)
     except Exception:
         traceback.print_exc()
-        print("line 131")
+        print("line 133")
         ReactorQuit()
 
 
@@ -144,31 +132,29 @@ def main(argv):
 
     try:
         run(args)
-        reactor.callLater(3, ReactorQuit)  # type: ignore
-        reactor.run()  # type: ignore
+        reactor.callLater(3, ReactorQuit)
+        reactor.run()
     except (
         twisted.internet.error.ReactorNotRestartable
-    ):  # pyright: ignore[reportGeneralTypeIssues]
+    ):
         pass
     except twisted.internet.error.ReactorAlreadyRunning:
         pass
     except Exception:
         traceback.print_exc()
-        print("line 153")
+        print("line 155")
         ReactorQuit()
 
 
 def ReactorQuit():
     try:
-        if reactor.running:  # type: ignore
-            reactor.stop()  # type: ignore
-    except (
-        twisted.internet.error.ReactorNotRunning
-    ):  # pyright: ignore[reportGeneralTypeIssues]
+        if reactor.running:
+            reactor.stop()
+    except twisted.internet.error.ReactorNotRunning:
         pass
     except Exception:
         traceback.print_exc()
-        print("line 165")
+        print("line 168")
 
 
 if __name__ == "__main__":
